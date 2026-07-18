@@ -48,7 +48,7 @@ export function buildBadgeReasons(car: Car): string[] {
     reasons.push(`on the lot ${car.daysListed}+ days`);
   }
   if (car.marketDelta != null && car.marketDelta > 0) {
-    reasons.push(`$${car.marketDelta.toLocaleString()} over market median`);
+    reasons.push(`$${Math.round(car.marketDelta).toLocaleString()} over market median`);
   }
   return reasons;
 }
