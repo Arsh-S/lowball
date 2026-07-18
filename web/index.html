@@ -38,6 +38,7 @@
       <span class="chip">a cheap Tesla Model 3 near Newark</span>
     </div>
     <div class="hint">One line: car, year, price cap, where. Specs get parsed, the market gets pulled, sellers get ranked by who'll cave first.</div>
+    <div class="browserow"><button class="ghost" id="browse">Browse all inventory →</button></div>
   </div>
 
   <!-- results -->
@@ -47,7 +48,41 @@
       <div class="masthead">Lowball &middot; Market sheet</div>
       <div><h2 id="rtitle">Found some targets</h2><p id="rsub"></p></div>
     </div>
+    <div class="fbar">
+      <input id="ftext" placeholder="Filter: make, model, dealer, town…" autocomplete="off" />
+      <input id="fmax" type="number" placeholder="Max $" min="0" step="500" />
+      <select id="fsort">
+        <option value="rank">Sort: negotiability</option>
+        <option value="price-asc">Price: low &rarr; high</option>
+        <option value="price-desc">Price: high &rarr; low</option>
+        <option value="miles">Miles: lowest</option>
+        <option value="year">Year: newest</option>
+        <option value="cuts">Biggest price cut</option>
+      </select>
+      <span class="fcount" id="fcount"></span>
+    </div>
     <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- listing detail (floating spec sheet) -->
+  <div id="detail">
+    <div class="dcard">
+      <div class="dphoto" id="dphoto">
+        <div class="badge" id="dbadge" style="display:none">🔥 Most negotiable</div>
+        <div class="price" id="dprice">$—</div>
+      </div>
+      <div class="dbody">
+        <h3 id="dtitle">Vehicle</h3>
+        <div class="sub" id="dsub"></div>
+        <div class="why" id="dwhy" style="display:none"></div>
+        <div class="dfacts" id="dfacts"></div>
+        <div class="drow">
+          <button id="dcall">Call &amp; lowball <span>→</span></button>
+          <a id="dlink" class="ghost" href="#" target="_blank" rel="noopener" style="display:none">Listing ↗</a>
+          <button class="ghost" id="dclose">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- live call -->

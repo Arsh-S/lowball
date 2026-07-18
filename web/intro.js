@@ -462,19 +462,35 @@ async function runSearch(){
   renderResults(data);
 }
 
-function renderResults(data){
-  const cars=(data.cars||data.listings||[]).slice(0,5);
-  const crit=data.criteria||{};
-  const grid=document.getElementById('grid'); grid.innerHTML='';
-  const parts=[];
-  if(crit.year_min||crit.year_max) parts.push([crit.year_min,crit.year_max].filter(Boolean).join('–'));
-  if(crit.make) parts.push([crit.make,crit.model].filter(Boolean).join(' '));
-  if(crit.max_price) parts.push('under '+money(crit.max_price));
-  if(crit.zip) parts.push('near '+crit.zip);
-  document.getElementById('rtitle').textContent = cars.length? `${cars.length} targets, ranked by who'll cave` : 'No matches — try broader terms';
-  document.getElementById('rsub').innerHTML = parts.length? `Parsed: <span class="crit">${parts.join(' · ')}</span> — top pick is the most negotiable.` : 'Sorted by negotiation leverage.';
+/* ---- results sheet: filter + sort over the loaded set ---- */
+let baseCars=[];
+const ftext=document.getElementById('ftext'), fmax=document.getElementById('fmax'),
+      fsort=document.getElementById('fsort'), fcount=document.getElementById('fcount');
 
-  cars.forEach((c,i)=>{
+function applyFilters(){
+  let list=[...baseCars];
+  const t=ftext.value.trim().toLowerCase();
+  if(t) list=list.filter(c=>`${c.year||''} ${c.make||''} ${c.model||''} ${c.trim||''} ${c.dealer||''} ${c.location||''}`.toLowerCase().includes(t));
+  const mp=+fmax.value;
+  if(mp>0) list=list.filter(c=>(c.price||0)<=mp);
+  const S={
+    'price-asc':(a,b)=>(a.price||1e12)-(b.price||1e12),
+    'price-desc':(a,b)=>(b.price||0)-(a.price||0),
+    'miles':(a,b)=>(a.mileage||1e12)-(b.mileage||1e12),
+    'year':(a,b)=>(b.year||0)-(a.year||0),
+    'cuts':(a,b)=>((b.priceCuts||0)-(a.priceCuts||0))||((b.totalDrop||0)-(a.totalDrop||0)),
+  };
+  if(S[fsort.value]) list.sort(S[fsort.value]); // 'rank' keeps server order (negotiability)
+  fcount.textContent=`${list.length} of ${baseCars.length}`;
+  renderGrid(list);
+}
+ftext.addEventListener('input',applyFilters);
+fmax.addEventListener('input',applyFilters);
+fsort.addEventListener('change',applyFilters);
+
+function renderGrid(cars){
+  const grid=document.getElementById('grid'); grid.innerHTML='';
+  cars.forEach(c=>{
     const el=document.createElement('div'); el.className='car'+(c.hot?' hot':'');
     const title=`${c.year||''} ${c.make||''} ${c.model||''}${c.trim?' '+c.trim:''}`.trim();
     const photo=c.photo||'';
@@ -487,17 +503,102 @@ function renderResults(data){
         <h3>${title||'Vehicle'}</h3>
         <div class="sub">${c.mileage?Number(c.mileage).toLocaleString()+' mi':''}${c.mileage&&c.dealer?' · ':''}${c.dealer||''}</div>
         ${c.why?`<div class="why${c.hot?'':' cool'}">${c.why}</div>`:''}
-        <div class="cta"><span class="call">Call &amp; lowball →</span><span class="dist">${c.location||''}</span></div>
+        <div class="cta"><span class="call">View details →</span><span class="dist">${c.location||''}</span></div>
       </div>`;
-    el.onclick=()=>startCall(c);
+    el.onclick=()=>openDetail(c);
     grid.appendChild(el);
   });
+}
 
+function showSheet(){
   searchEl.classList.remove('show'); brand.classList.remove('show');
   const res=document.getElementById('results'); res.classList.add('show');
   document.getElementById('back').style.display='';
   res.scrollTop=0;
 }
+
+function renderResults(data){
+  const cars=data.cars||data.listings||[];
+  const crit=data.criteria||{};
+  const parts=[];
+  if(crit.year_min||crit.year_max) parts.push([crit.year_min,crit.year_max].filter(Boolean).join('–'));
+  if(crit.make) parts.push([crit.make,crit.model].filter(Boolean).join(' '));
+  if(crit.max_price) parts.push('under '+money(crit.max_price));
+  if(crit.zip) parts.push('near '+crit.zip);
+  document.getElementById('rtitle').textContent = cars.length? `${cars.length} targets, ranked by who'll cave` : 'No matches — try broader terms';
+  document.getElementById('rsub').innerHTML = parts.length? `Parsed: <span class="crit">${parts.join(' · ')}</span> — top pick is the most negotiable.` : 'Sorted by negotiation leverage.';
+  fsort.value='rank';
+  baseCars=cars; applyFilters();
+  showSheet();
+}
+
+/* ---- browse mode: full inventory, no search required ---- */
+async function browse(){
+  try{
+    const r=await fetch(API+'/listings');
+    if(!r.ok) throw new Error('listings '+r.status);
+    const list=await r.json();
+    const cars=list.map(l=>({
+      id:l.id, year:+l.year||0, make:l.make, model:l.model, trim:l.trim,
+      price:l.price, mileage:l.miles, dealer:l.dealer, phone:l.phone,
+      location:l.location, photo:l.photo, target:l.target, url:l.url,
+      priceCuts:l.priceCuts||0, totalDrop:l.totalDrop||0, marketDelta:l.marketDelta,
+      why:whyFromLeverage(l),
+    }));
+    document.getElementById('rtitle').textContent=`Inventory — ${cars.length} cars on file`;
+    document.getElementById('rsub').textContent='Full scraped dataset. Filter, sort, click a card for the spec sheet.';
+    fsort.value='cuts';
+    baseCars=cars; applyFilters();
+    showSheet();
+  }catch(err){
+    console.warn(err); toast('Couldn’t load inventory — is the server up?');
+  }
+}
+function whyFromLeverage(l){
+  const bits=[];
+  if(l.priceCuts) bits.push(`${l.priceCuts} price cut${l.priceCuts>1?'s':''}${l.totalDrop?` (${money(l.totalDrop)} off peak)`:''}`);
+  if(l.marketDelta!=null&&l.marketDelta<-200) bits.push(`${money(-l.marketDelta)} under market median`);
+  if(l.marketDelta!=null&&l.marketDelta>200) bits.push(`${money(l.marketDelta)} over market median`);
+  return bits.join(' · ')||undefined;
+}
+document.getElementById('browse').onclick=browse;
+
+/* ---- floating detail sheet: inspect first, call from here ---- */
+const detailEl=document.getElementById('detail');
+let detailCar=null;
+function openDetail(c){
+  detailCar=c;
+  const title=`${c.year||''} ${c.make||''} ${c.model||''}${c.trim?' '+c.trim:''}`.trim()||'Vehicle';
+  document.getElementById('dtitle').textContent=title;
+  document.getElementById('dphoto').style.backgroundImage=c.photo?`url('${c.photo}')`:'';
+  document.getElementById('dbadge').style.display=c.hot?'':'none';
+  document.getElementById('dprice').textContent=c.price?money(c.price):'$—';
+  document.getElementById('dsub').textContent=[
+    c.mileage?Number(c.mileage).toLocaleString()+' mi':'', c.dealer||'', c.location||''
+  ].filter(Boolean).join(' · ');
+  const why=document.getElementById('dwhy');
+  if(c.why){ why.textContent=c.why; why.className='why'+(c.hot?'':' cool'); why.style.display=''; }
+  else why.style.display='none';
+  const target=c.target||Math.round((c.price||0)*0.91);
+  const delta=c.marketDelta;
+  const facts=[
+    ['Asking', c.price?money(c.price):'—'],
+    ['Lowball target', target?money(target):'—','good'],
+    ['Price cuts', String(c.priceCuts??0)+(c.totalDrop?` · ${money(c.totalDrop)} off`:'')],
+    ['Vs. market', delta==null?'—':(delta<0?money(-delta)+' under':money(delta)+' over'), delta==null?'':(delta<0?'good':'bad')],
+    ['Dealer phone', c.phone||'—'],
+  ];
+  document.getElementById('dfacts').innerHTML=facts.map(([l,v,cls])=>
+    `<div class="dfact"><div class="lbl">${l}</div><div class="val ${cls||''}">${v}</div></div>`).join('');
+  const link=document.getElementById('dlink');
+  if(c.url){ link.href=c.url; link.style.display=''; } else link.style.display='none';
+  detailEl.classList.add('show');
+}
+function closeDetail(){ detailEl.classList.remove('show'); detailCar=null; }
+document.getElementById('dclose').onclick=closeDetail;
+detailEl.addEventListener('click',e=>{ if(e.target===detailEl) closeDetail(); });
+document.getElementById('dcall').onclick=()=>{ if(!detailCar) return; const c=detailCar; closeDetail(); startCall(c); };
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeDetail(); });
 document.getElementById('back').onclick=()=>{
   document.getElementById('results').classList.remove('show');
   brand.classList.add('show'); searchEl.classList.add('show'); q.focus();
