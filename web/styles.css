@@ -43,7 +43,7 @@ canvas{display:block}
   color:var(--bone);opacity:0;transition:opacity .8s ease .2s;
 }
 #brand.show{opacity:1}
-#brand .dot{width:13px;height:13px;background:var(--plate);border:1.5px solid var(--ink)}
+#brand .logo{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--ink);image-rendering:pixelated}
 
 /* ---- intro controls ---- */
 #controls{position:fixed;top:18px;right:20px;z-index:40;display:flex;gap:8px}

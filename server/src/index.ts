@@ -38,6 +38,11 @@ app.get("/styles.css", async (_req, reply) => {
 app.get("/intro.js", async (_req, reply) => {
   reply.type("text/javascript").send(readFileSync(`${WEB_DIR}/intro.js`, "utf8"));
 });
+for (const png of ["lowball.png", "favicon.png", "apple-touch-icon.png"]) {
+  app.get(`/${png}`, async (_req, reply) => {
+    reply.type("image/png").send(readFileSync(`${WEB_DIR}/${png}`));
+  });
+}
 
 app.post<{ Body: { query: string; client?: string } }>("/search", async (req, reply) => {
   const query = req.body?.query?.trim();

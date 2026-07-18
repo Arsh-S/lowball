@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/lowball.png" alt="Lowball" width="160" />
+</p>
+
 # 🎯 Lowball
 
 **Lowball is an AI agent that calls car dealers and negotiates the price down for you, live.**
