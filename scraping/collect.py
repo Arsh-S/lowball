@@ -20,6 +20,7 @@ import statistics
 import time
 from pathlib import Path
 
+from scraping.carscom import cache
 from scraping.carscom.browser import browser_context, fetch_html, fetch_many
 from scraping.carscom.detail import parse_detail
 from scraping.carscom.search import build_search_url, median_price, parse_search_results
@@ -48,8 +49,12 @@ async def collect(queries: list[dict], total: int, zip_code: str, concurrency: i
         for q in queries:
             url = build_search_url(zip_code=zip_code, **q)
             t0 = time.time()
-            html = await fetch_html(ctx, url, wait_selector='a[href^="/vehicledetail/"]')
-            cards = parse_search_results(html)
+            cards = cache.get_search(url)
+            cache_hit = cards is not None
+            if cards is None:
+                html = await fetch_html(ctx, url, wait_selector='a[href^="/vehicledetail/"]')
+                cards = parse_search_results(html)
+                cache.put_search(url, cards)
             report["queries"].append(
                 {
                     "query": q,
@@ -57,22 +62,32 @@ async def collect(queries: list[dict], total: int, zip_code: str, concurrency: i
                     "cards_found": len(cards),
                     "median_price": median_price(cards),
                     "search_seconds": round(time.time() - t0, 2),
+                    "from_cache": cache_hit,
                 }
             )
             candidates.extend(cards[: per_query + 3])  # over-collect for failures
 
         # dedupe, cap
         seen: set[str] = set()
-        urls: list[str] = []
+        deduped: list[dict] = []
         for c in candidates:
             if c["id"] not in seen:
                 seen.add(c["id"])
-                urls.append(c["url"])
+                deduped.append(c)
 
-        # 2) detail pages
+        # 2) detail pages — cached listings are free, only fetch the rest
         listings: list[dict] = []
         detail_times: list[float] = []
         failures: list[str] = []
+        urls: list[str] = []
+        cached_count = 0
+        for c in deduped:
+            hit = cache.get_listing(c["id"])
+            if hit:
+                listings.append(hit)
+                cached_count += 1
+            else:
+                urls.append(c["url"])
         results = await fetch_many(ctx, urls, concurrency=concurrency)
         for url, html, elapsed in results:
             if len(listings) >= total:
@@ -84,16 +99,12 @@ async def collect(queries: list[dict], total: int, zip_code: str, concurrency: i
             if not listing["id"] or not listing["price"]:
                 failures.append(url)
                 continue
+            cache.put_listing(listing)  # save immediately — never fetch twice
             listings.append(listing)
             detail_times.append(elapsed)
+        listings = listings[:total]
 
-    # 3) write output
-    out_dir = DATA_DIR / "listings"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for listing in listings:
-        (out_dir / f"{listing['id']}.json").write_text(
-            json.dumps(listing, indent=2, ensure_ascii=False)
-        )
+    # 3) write combined output (per-listing files already saved via cache)
     (DATA_DIR / "listings.json").write_text(
         json.dumps(listings, indent=2, ensure_ascii=False)
     )
@@ -111,6 +122,7 @@ async def collect(queries: list[dict], total: int, zip_code: str, concurrency: i
         "detail_seconds_p95": round(sorted(detail_times)[int(len(detail_times) * 0.95) - 1], 2)
         if len(detail_times) >= 2 else None,
         "concurrency": concurrency,
+        "listings_from_cache": cached_count,
         "failures": failures,
     }
     (DATA_DIR / "collection_report.json").write_text(json.dumps(report, indent=2))

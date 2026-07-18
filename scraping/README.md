@@ -48,6 +48,19 @@ seller_phone_number, features, photos`) plus negotiation-useful extras:
 `price_changes` is real price history scraped from the VDP's price-history
 table — gold for the negotiator ("you've dropped it three times already…").
 
+## Caching — never fetch twice
+
+`carscom/cache.py` backs every fetch with files in `data/`:
+
+- `data/listings/<id>.json` — parsed details, 12h TTL. The dataset IS the
+  cache: any listing already scraped is reused for free.
+- `data/cache/searches/<key>.json` — search cards per query URL, 30min TTL.
+
+Listings are saved the moment they parse (not at end-of-run), so a
+crashed run keeps everything it scraped. A fully-cached query answers in
+~4s (browser startup only, zero network). This also protects our IP:
+Cloudflare escalates challenges after fetch bursts.
+
 ## Median price
 
 Two ways, both free:
