@@ -524,38 +524,37 @@ async function startCall(c){
   feed.innerHTML=''; callEl.classList.add('show');
   addMsg('sys','Dialing '+(c.phone||c.dealer||'dealer')+'…');
 
-  // live dashboard feed (existing /dashboard WS)
+  // live dashboard feed (/dashboard WS) — real call events only, no mock
   try{
     ws?.close();
     ws=new WebSocket((API||location.origin).replace(/^http/,'ws')+'/dashboard');
     ws.onmessage=ev=>{ let d; try{d=JSON.parse(ev.data)}catch{return}
-      if(d.type==='transcript'||d.role) addMsg(d.role==='assistant'?'agent':'dealer', d.text||d.transcript||'');
-      if(d.type==='offer'||d.price!=null) setOffer(d.price??d.offer);
+      switch(d.type){
+        case 'transcript': if(d.final&&d.text) addMsg(d.role==='assistant'?'agent':'dealer', d.text); break;
+        case 'offer': setOffer(d.price); break;
+        case 'deal': setOffer(d.price); addMsg('sys',`Deal at ${money(d.price)}.`); break;
+        case 'call-started': addMsg('sys','Call connected — live transcript below.'); break;
+        case 'status': addMsg('sys','Call status: '+d.status); break;
+        case 'call-ended': addMsg('sys','Call ended'+(d.outcome?` — ${d.outcome}`:'')+(d.price?` at ${money(d.price)}`:'')+'.'); break;
+        case 'report': if(d.summary) addMsg('sys',d.summary); break;
+      }
     };
   }catch{}
 
-  // kick off the real negotiation (best-effort)
+  // kick off the real negotiation; surface failures instead of faking a call
   const car={year:+c.year||0,make:c.make||'',model:c.model||'',miles:+c.mileage||0,
     price:+c.price||0,dealer:c.dealer||'',phone:c.phone||'',target:c.target||Math.round((+c.price||0)*0.91)};
-  fetch(API+'/negotiate',{method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({listingId:c.id,car,dealerPhone:c.phone})}).catch(()=>{});
-
-  // if no live WS in a moment, run a scripted demo so the flow always reads
-  setTimeout(()=>{ if(feed.children.length<=1) demoCall(c); }, 1800);
-}
-function demoCall(c){
-  const ask=c.price||14000, target=c.target||Math.round(ask*0.91);
-  const script=[
-    ['agent',`Hi, I'm calling about the ${c.year} ${c.make} ${c.model} you have listed at ${money(ask)}. Is it still available?`],
-    ['dealer',`It is! Great car. Price is ${money(ask)}.`],
-    ['agent',`I've been watching comparable ${c.model}s — a few are sitting below this. I can do ${money(target)} cash, today.`, target],
-    ['dealer',`I can't go that low… but I could come down to ${money(Math.round((ask+target)/2))}.`, Math.round((ask+target)/2)],
-    ['agent',`Appreciate it. Split the difference — ${money(Math.round(target+ (ask-target)*0.2))} and I'll put a deposit down right now.`, Math.round(target+(ask-target)*0.2)],
-    ['dealer',`…alright. ${money(Math.round(target+(ask-target)*0.2))} works.`, Math.round(target+(ask-target)*0.2)],
-    ['sys',`Deal closed. Saved ${money(ask - Math.round(target+(ask-target)*0.2))}.`],
-  ];
-  let i=0;(function step(){ if(i>=script.length)return; const [who,txt,price]=script[i++];
-    addMsg(who,txt); if(price)setOffer(price); setTimeout(step, 1500+Math.random()*900); })();
+  try{
+    const r=await fetch(API+'/negotiate',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({listingId:c.id,car,dealerPhone:c.phone,clientName:client.value.trim()||undefined})});
+    if(!r.ok){
+      let msg='negotiate '+r.status;
+      try{ msg=(await r.json()).error||msg; }catch{}
+      throw new Error(msg);
+    }
+  }catch(err){
+    addMsg('sys','Couldn’t start the call: '+err.message);
+  }
 }
 document.getElementById('endcall').onclick=()=>{ ws?.close(); callEl.classList.remove('show'); };
 

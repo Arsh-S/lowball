@@ -64,9 +64,13 @@ app.post<{ Body: { query: string; client?: string } }>("/search", async (req, re
       phone: c.phone,
       location: c.city,
       photo: c.photo,
+      url: c.url,
       hot: Boolean(c.badge),
       why: (c.badge?.reasons ?? c.reasons)?.join(" · ") || undefined,
       target: packetCache.get(c.id)?.target,
+      priceCuts: c.negotiability.priceDrops,
+      totalDrop: c.negotiability.totalDrop,
+      marketDelta: c.negotiability.marketDelta,
     }));
     return { ...result, criteria: result.params, cars };
   } catch (err) {

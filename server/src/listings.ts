@@ -43,6 +43,17 @@ export function loadListings(): RawListing[] {
   return listings;
 }
 
+// `photos` arrives as a JSON-encoded array of URLs (scraper detail schema).
+export function firstPhoto(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && typeof arr[0] === "string" ? arr[0] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function parsePriceHistory(raw?: string): PricePoint[] {
   if (!raw) return [];
   try {
@@ -111,21 +122,31 @@ export function getCar(id: string): Car | undefined {
   return listing && toCar(listing, all);
 }
 
-// Compact shape for the dashboard picker.
+// Compact shape for the dashboard picker + the web browse view.
 export function listListings() {
   const all = loadListings();
   return all.map((l) => {
+    const car = toCar(l, all);
     const history = parsePriceHistory(l.price_changes);
     return {
       id: l.id,
       title: `${l.year} ${l.make} ${l.model}${l.trim ? ` ${l.trim}` : ""}`,
-      price: Number(l.price) || 0,
-      miles: Number(l.mileage) || 0,
-      dealer: l.seller_name,
+      year: car.year,
+      make: car.make,
+      model: car.model,
+      trim: car.trim,
+      price: car.price,
+      miles: car.miles,
+      dealer: car.dealer,
       location: l.seller_address ?? "",
-      phone: toE164(l.seller_phone_number),
+      phone: car.phone,
       badge: l.price_badge || null,
       priceCuts: Math.max(0, history.length - 1),
+      priceDrops: car.priceDrops ?? 0,
+      totalDrop: car.totalDrop ?? 0,
+      marketDelta: car.marketDelta ?? null,
+      target: car.target,
+      photo: firstPhoto(l.photos),
       url: l.url,
     };
   });

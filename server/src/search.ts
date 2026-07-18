@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { scraperSearch, scraperGetListingsBatch, type ScraperSearchCard } from "./scraper.js";
 import { buildPacket } from "./packet.js";
 import { rankCards, isNoHaggle, buildBadgeReasons } from "./rank.js";
-import { loadListings, toCar } from "./listings.js";
+import { loadListings, toCar, firstPhoto } from "./listings.js";
 import type { Car, CompCard } from "./types.js";
 
 // Built packets from the last /search, keyed by listing id, so /negotiate can
@@ -22,6 +22,7 @@ export type CardView = {
   phone: string;
   badge?: { label: string; reasons: string[] };
   photo?: string;
+  url?: string;
   reasons: string[];
   negotiability: {
     priceDrops: number;
@@ -87,17 +88,6 @@ async function extractParams(query: string): Promise<ExtractedParams> {
     ],
   });
   return JSON.parse(res.choices[0]?.message?.content ?? "{}");
-}
-
-// `photos` arrives as a JSON-encoded array of URLs (scraper detail schema).
-function firstPhoto(raw?: string): string | undefined {
-  if (!raw) return undefined;
-  try {
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) && typeof arr[0] === "string" ? arr[0] : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function toCompCard(card: ScraperSearchCard): CompCard | null {
@@ -166,6 +156,7 @@ function datasetSearch(params: ExtractedParams): SearchResult {
       city: listing.seller_address || undefined,
       phone: car.phone,
       photo: firstPhoto(listing.photos),
+      url: listing.url,
       badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
       reasons,
       negotiability: {
@@ -239,6 +230,7 @@ async function scraperBackedSearch(params: ExtractedParams): Promise<SearchResul
       phone: car?.phone ?? "",
       badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
       photo: photoById.get(card.id),
+      url: card.url,
       reasons,
       negotiability: {
         priceDrops: car?.priceDrops ?? 0,
