@@ -41,6 +41,7 @@ canvas{display:block}
   position:fixed;top:20px;left:24px;z-index:40;display:flex;align-items:center;gap:10px;
   font-family:var(--disp);font-weight:800;font-size:21px;letter-spacing:.06em;text-transform:uppercase;
   color:var(--bone);opacity:0;transition:opacity .8s ease .2s;
+  pointer-events:none; /* decorative — must not eat clicks on #back underneath */
 }
 #brand.show{opacity:1}
 #brand .logo{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--ink);image-rendering:pixelated}
