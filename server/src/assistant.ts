@@ -1,5 +1,33 @@
 import type { Car } from "./types.js";
 
+// TTS mangles "$12,500" ("one dollar and two five zero zero") — always
+// hand the voice plain words.
+export function spokenUsd(n: number): string {
+  const ones = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen"];
+  const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+  const under1000 = (x: number): string => {
+    const parts: string[] = [];
+    if (x >= 100) {
+      parts.push(`${ones[Math.floor(x / 100)]} hundred`);
+      x %= 100;
+    }
+    if (x >= 20) {
+      parts.push(x % 10 ? `${tens[Math.floor(x / 10)]} ${ones[x % 10]}` : tens[Math.floor(x / 10)]);
+    } else if (x > 0) {
+      parts.push(ones[x]);
+    }
+    return parts.join(" ");
+  };
+  const k = Math.floor(n / 1000);
+  const rest = Math.round(n % 1000);
+  const words = [k ? `${under1000(k)} thousand` : "", rest ? under1000(rest) : ""]
+    .filter(Boolean)
+    .join(" ");
+  return `${words || "zero"} dollars`;
+}
+
 function fn(
   name: string,
   description: string,
@@ -20,6 +48,8 @@ function fn(
 
 export function buildAssistant(car: Car) {
   const systemPrompt = `You are Alex, a real person calling a car dealership about a used car. You are speaking on a live phone call. Never reveal you are an AI, an assistant, or reading from a script. Speak in short, natural, phone-call sentences. One point or question at a time. Never use lists or formatting.
+
+SPEAKING PRICES: whenever you say a price out loud, write it in plain words — "twelve thousand five hundred dollars", or casually "twelve five". NEVER write digits or the $ symbol in anything you say; the voice engine reads them wrong.
 
 THE CAR
 ${car.year} ${car.make} ${car.model}, about ${car.miles.toLocaleString()} miles, listed at $${car.price.toLocaleString()} by ${car.dealer}.
@@ -43,7 +73,7 @@ Stay polite, confident, unhurried. Silence is fine. Never bid against yourself: 
 
   return {
     name: "Lowball Negotiator",
-    firstMessage: `Hi there — I'm calling about the ${car.year} ${car.make} ${car.model} you have listed for $${car.price.toLocaleString()}. Is it still available?`,
+    firstMessage: `Hi there — I'm calling about the ${car.year} ${car.make} ${car.model} you have listed for ${spokenUsd(car.price)}. Is it still available?`,
     model: {
       provider: "openai",
       model: "gpt-4o",
