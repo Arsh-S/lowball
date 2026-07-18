@@ -1,6 +1,11 @@
-export type PricePoint = { date: string; price: number };
+export type PriceHistoryEntry = { date: string; price: number };
+// Alias used by listings.ts (scraper-dataset loader) — same shape.
+export type PricePoint = PriceHistoryEntry;
+
+export type CompCard = { year: number; price: number; dealer: string; distanceMi?: number };
 
 export type Car = {
+  // identity — kept required so existing code (ingest.ts, negotiate.ts) still compiles
   year: number;
   make: string;
   model: string;
@@ -9,9 +14,29 @@ export type Car = {
   dealer: string;
   phone: string;
   target: number;
-  // Negotiation intel from the scraper dataset (optional — /ingest cars won't have it).
-  priceHistory?: PricePoint[]; // newest first, from the VDP price-history table
-  marketMedian?: number; // median asking of comparable make+model nearby
+
+  // identity extras
+  trim?: string;
+  vin?: string;
+  city?: string;
+
+  // raw leverage facts (from listing scrape)
+  priceHistory?: PriceHistoryEntry[];
+  priceDrops?: number;
+  totalDrop?: number;
+  daysListed?: number;
+  milesPerYear?: number;
+
+  // market context
+  marketMedian?: number | null;
+  marketDelta?: number | null;
+  comps?: CompCard[];
+
+  // ladder
+  opening?: number;
+
+  // client
+  clientName?: string;
 };
 
 export function defaultTarget(price: number): number {

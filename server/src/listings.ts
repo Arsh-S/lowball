@@ -82,17 +82,25 @@ function marketMedianFor(listing: RawListing, all: RawListing[]): number | undef
 
 export function toCar(listing: RawListing, all: RawListing[]): Car {
   const price = Number(listing.price) || 0;
+  const priceHistory = parsePriceHistory(listing.price_changes); // newest first
+  const priceDrops = priceHistory.filter((p, i) => i + 1 < priceHistory.length && p.price < priceHistory[i + 1].price).length;
+  const peak = priceHistory.length ? Math.max(...priceHistory.map((p) => p.price)) : 0;
+  const marketMedian = marketMedianFor(listing, all);
   return {
     year: Number(listing.year) || 0,
     make: listing.make,
-    model: listing.trim ? `${listing.model} ${listing.trim}` : listing.model,
+    model: listing.model,
+    trim: listing.trim || undefined,
     miles: Number(listing.mileage) || 0,
     price,
     dealer: listing.seller_name,
     phone: toE164(listing.seller_phone_number),
     target: defaultTarget(price),
-    priceHistory: parsePriceHistory(listing.price_changes),
-    marketMedian: marketMedianFor(listing, all),
+    priceHistory,
+    priceDrops,
+    totalDrop: peak > price ? peak - price : 0,
+    marketMedian: marketMedian ?? null,
+    marketDelta: marketMedian != null ? price - marketMedian : null,
   };
 }
 
