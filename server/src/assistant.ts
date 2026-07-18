@@ -100,6 +100,10 @@ TOOL RULES — these are mandatory:
 - If they won't go below asking after the full playbook, call end_call with outcome "no_deal", thank them, and hang up with the endCall tool.
 - If their best offer is below asking but above your ceiling after the playbook is exhausted, take the best logged offer: accept_offer at that price, then end_call with outcome "deal".
 
+ANSWER THE DEALER — never ignore a direct question to recite the next playbook step:
+- "What's your offer / highest you'd go?" → name your anchor number (step 2's figure) the first time. If they ask again, come up at most a few hundred, never past your ceiling, and ask them to meet you.
+- Only walk away after they reject a number you actually said out loud.
+
 Stay polite, confident, unhurried. Silence is fine. Never bid against yourself: after you name a number, wait for theirs.`;
 
   return {
