@@ -8,11 +8,30 @@ https://www.cars.com/shopping/results/?stock_type=used&makes[]=toyota
 
 from __future__ import annotations
 
+import html as html_lib
 import re
 import statistics
 from urllib.parse import urlencode
 
 BASE = "https://www.cars.com/shopping/results/"
+
+# Fallback cap on how far past a card's vehicledetail href we scan for its
+# title/dealer text, used only for the last card on the page (no next-card
+# boundary to stop at). Cards run ~10-15KB apart on a rendered results page.
+_CARD_WINDOW_MAX = 20_000
+
+# The title link carries the year (and make/model/trim) as data- attributes,
+# e.g. <a data-card-link="" ... data-year="2019" ...><span>Used 2019 Honda
+# Civic EX-L</span></a>. Attribute order is stable but we don't rely on it.
+_TITLE_RE = re.compile(
+    r'<a data-card-link=""[^>]*data-year="(\d+)"[^>]*>\s*<span[^>]*>\s*([^<]+?)\s*</span>',
+    re.S,
+)
+_TITLE_PREFIX_RE = re.compile(r"^(?:Used|New|Certified(?: Pre-Owned)?)\s+", re.I)
+
+# Dealer name is the first weak-styled span after the title's </h2>; cars.com
+# has no data-qa hook for it, so we anchor on the shared CSS var instead.
+_DEALER_RE = re.compile(r"</h2>.*?fuse-color-text-weaker[^>]*>([^<]+)</span>", re.S)
 
 
 def build_search_url(
@@ -52,28 +71,49 @@ def build_search_url(
 
 
 def parse_search_results(html: str) -> list[dict]:
-    """Extract listing cards: detail URL, listing id, and price.
+    """Extract listing cards: detail URL, id, price, title, year, dealer.
 
     Cards link to /vehicledetail/<uuid>/ and carry a nearby price element;
-    we pair ids with prices by scanning the card container blocks.
+    we pair ids with prices/title/dealer by scanning the card container
+    blocks. title/year/dealer are best-effort — None if unparseable, and
+    collect.py only ever relies on id/url/price so this stays safe either way.
     """
-    cards: list[dict] = []
+    # First pass: unique (listing_id, start_offset) in document order, so each
+    # card's scan window can stop at the *next* card's href instead of a
+    # guessed fixed size — card blocks vary in length (badge text, photo
+    # counts, etc.) enough that a fixed window either misses fields or risks
+    # bleeding into the next card.
     seen: set[str] = set()
-    for m in re.finditer(
-        r'href="/vehicledetail/([0-9a-f-]{36})/[^"]*"', html
-    ):
+    starts: list[tuple[str, int]] = []
+    for m in re.finditer(r'href="/vehicledetail/([0-9a-f-]{36})/[^"]*"', html):
         listing_id = m.group(1)
-        if listing_id in seen:
-            continue
-        seen.add(listing_id)
-        # Look for the first price after the link within the card block.
-        window = html[m.start() : m.start() + 4000]
-        pm = re.search(r"\$([\d,]+)", window)
+        if listing_id not in seen:
+            seen.add(listing_id)
+            starts.append((listing_id, m.start()))
+
+    cards: list[dict] = []
+    for i, (listing_id, start) in enumerate(starts):
+        next_start = starts[i + 1][1] if i + 1 < len(starts) else start + _CARD_WINDOW_MAX
+        window = html[start:next_start]
+        pm = re.search(r"\$([\d,]+)", window[:4000])
+
+        title = year = dealer = None
+        tm = _TITLE_RE.search(window)
+        if tm:
+            year = int(tm.group(1))
+            title = _TITLE_PREFIX_RE.sub("", html_lib.unescape(tm.group(2).strip()))
+        dm = _DEALER_RE.search(window)
+        if dm:
+            dealer = html_lib.unescape(dm.group(1).strip())
+
         cards.append(
             {
                 "id": listing_id,
                 "url": f"https://www.cars.com/vehicledetail/{listing_id}/",
                 "price": int(pm.group(1).replace(",", "")) if pm else None,
+                "title": title,
+                "year": year,
+                "dealer": dealer,
             }
         )
     return cards
