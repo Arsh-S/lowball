@@ -1,0 +1,198 @@
+{
+  "url": "https://www.cars.com/shopping/results/?stock_type=used&zip=10001&maximum_distance=100&page=1&page_size=50&makes%5B%5D=toyota&models%5B%5D=toyota-camry",
+  "cached_at": 1784400464.828421,
+  "cards": [
+    {
+      "id": "0406c1f6-6007-4112-bac4-01df909411c5",
+      "url": "https://www.cars.com/vehicledetail/0406c1f6-6007-4112-bac4-01df909411c5/",
+      "price": 36798,
+      "title": "2025 Toyota Camry XSE",
+      "year": 2025,
+      "dealer": "New Rochelle Toyota"
+    },
+    {
+      "id": "821f501e-d1ee-4154-b31e-812bfca58dc0",
+      "url": "https://www.cars.com/vehicledetail/821f501e-d1ee-4154-b31e-812bfca58dc0/",
+      "price": 14999,
+      "title": "2017 Toyota Camry SE",
+      "year": 2017,
+      "dealer": "Galaxy Toyota"
+    },
+    {
+      "id": "67c8304f-7cc8-40bf-8b63-f41eac6dd701",
+      "url": "https://www.cars.com/vehicledetail/67c8304f-7cc8-40bf-8b63-f41eac6dd701/",
+      "price": 27294,
+      "title": "2024 Toyota Camry XSE",
+      "year": 2024,
+      "dealer": "Atlantic Toyota"
+    },
+    {
+      "id": "d9fd3dcd-22ee-486c-bb91-ccd1e54bc64c",
+      "url": "https://www.cars.com/vehicledetail/d9fd3dcd-22ee-486c-bb91-ccd1e54bc64c/",
+      "price": 20997,
+      "title": "2017 Toyota Camry XLE",
+      "year": 2017,
+      "dealer": "Hamilton Honda"
+    },
+    {
+      "id": "120a35f8-d1f9-4781-9b96-549e63871388",
+      "url": "https://www.cars.com/vehicledetail/120a35f8-d1f9-4781-9b96-549e63871388/",
+      "price": 32789,
+      "title": "2024 Toyota Camry TRD V6",
+      "year": 2024,
+      "dealer": "BMW of Freehold"
+    },
+    {
+      "id": "089c853c-7c3d-447f-bf1c-9b10f4c3d24f",
+      "url": "https://www.cars.com/vehicledetail/089c853c-7c3d-447f-bf1c-9b10f4c3d24f/",
+      "price": 8160,
+      "title": "2017 Toyota Camry LE",
+      "year": 2017,
+      "dealer": "Planet Honda"
+    },
+    {
+      "id": "c54490c2-39b2-47a7-8657-eb79d84b0eef",
+      "url": "https://www.cars.com/vehicledetail/c54490c2-39b2-47a7-8657-eb79d84b0eef/",
+      "price": 19846,
+      "title": "2019 Toyota Camry LE",
+      "year": 2019,
+      "dealer": "DCH Honda of Nanuet"
+    },
+    {
+      "id": "0fd08964-7790-48d5-b0d6-7d902095eaa5",
+      "url": "https://www.cars.com/vehicledetail/0fd08964-7790-48d5-b0d6-7d902095eaa5/",
+      "price": 31499,
+      "title": "2024 Toyota Camry SE",
+      "year": 2024,
+      "dealer": "Galaxy Toyota"
+    },
+    {
+      "id": "b375e7f3-0cef-4769-adbb-b1b883819cd3",
+      "url": "https://www.cars.com/vehicledetail/b375e7f3-0cef-4769-adbb-b1b883819cd3/",
+      "price": 15373,
+      "title": "2016 Toyota Camry SE",
+      "year": 2016,
+      "dealer": "Crowley Kia"
+    },
+    {
+      "id": "1be4e99b-e7c0-4642-bd34-5b1dee4f0a47",
+      "url": "https://www.cars.com/vehicledetail/1be4e99b-e7c0-4642-bd34-5b1dee4f0a47/",
+      "price": 23463,
+      "title": "2023 Toyota Camry SE",
+      "year": 2023,
+      "dealer": "Westchester Toyota"
+    },
+    {
+      "id": "366004d6-53ce-4b65-9621-7be1aa0867cd",
+      "url": "https://www.cars.com/vehicledetail/366004d6-53ce-4b65-9621-7be1aa0867cd/",
+      "price": 35657,
+      "title": "2026 Toyota Camry SE",
+      "year": 2026,
+      "dealer": "Westbrook Toyota"
+    },
+    {
+      "id": "7e63a723-7d58-425e-bdb4-877aeb00ced0",
+      "url": "https://www.cars.com/vehicledetail/7e63a723-7d58-425e-bdb4-877aeb00ced0/",
+      "price": 34481,
+      "title": "2026 Toyota Camry SE",
+      "year": 2026,
+      "dealer": "Sloane Toyota of Malvern"
+    },
+    {
+      "id": "c0ca6ee3-4fba-4e94-95dd-40ea137fde81",
+      "url": "https://www.cars.com/vehicledetail/c0ca6ee3-4fba-4e94-95dd-40ea137fde81/",
+      "price": 28297,
+      "title": "2024 Toyota Camry SE",
+      "year": 2024,
+      "dealer": "Conicelli Toyota of Springfield"
+    },
+    {
+      "id": "c1b0f83c-6461-4bb4-b9ab-77307e3aa3bf",
+      "url": "https://www.cars.com/vehicledetail/c1b0f83c-6461-4bb4-b9ab-77307e3aa3bf/",
+      "price": 24995,
+      "title": "2024 Toyota Camry LE",
+      "year": 2024,
+      "dealer": "Galaxy Toyota"
+    },
+    {
+      "id": "0618f069-7968-492d-9e4a-7b608946e5ff",
+      "url": "https://www.cars.com/vehicledetail/0618f069-7968-492d-9e4a-7b608946e5ff/",
+      "price": 18544,
+      "title": "2018 Toyota Camry XLE",
+      "year": 2018,
+      "dealer": "DCH Ford of Eatontown"
+    },
+    {
+      "id": "352902cc-79c2-4069-bf3d-be9656b2dce4",
+      "url": "https://www.cars.com/vehicledetail/352902cc-79c2-4069-bf3d-be9656b2dce4/",
+      "price": 32622,
+      "title": "2026 Toyota Camry SE",
+      "year": 2026,
+      "dealer": "Westbury Toyota"
+    },
+    {
+      "id": "decce756-0281-4e55-ab56-6e18e542bf65",
+      "url": "https://www.cars.com/vehicledetail/decce756-0281-4e55-ab56-6e18e542bf65/",
+      "price": 28798,
+      "title": "2022 Toyota Camry XSE",
+      "year": 2022,
+      "dealer": "CarVision of Maple Shade"
+    },
+    {
+      "id": "63ed87c3-d4b7-489f-af46-d5ff55bc00a0",
+      "url": "https://www.cars.com/vehicledetail/63ed87c3-d4b7-489f-af46-d5ff55bc00a0/",
+      "price": 10994,
+      "title": "2008 Toyota Camry XLE",
+      "year": 2008,
+      "dealer": "DCH Paramus Honda"
+    },
+    {
+      "id": "b5fdad42-3205-4332-9450-b9a28333d23d",
+      "url": "https://www.cars.com/vehicledetail/b5fdad42-3205-4332-9450-b9a28333d23d/",
+      "price": 32459,
+      "title": "2026 Toyota Camry SE",
+      "year": 2026,
+      "dealer": "Ardmore Toyota"
+    },
+    {
+      "id": "70f4e513-d4bd-40aa-baf8-549dc46cb1f8",
+      "url": "https://www.cars.com/vehicledetail/70f4e513-d4bd-40aa-baf8-549dc46cb1f8/",
+      "price": 27986,
+      "title": "2020 Toyota Camry TRD V6",
+      "year": 2020,
+      "dealer": "Haldeman Subaru"
+    },
+    {
+      "id": "610839d1-a1c9-4c9f-9bc2-00ad11a2a9b0",
+      "url": "https://www.cars.com/vehicledetail/610839d1-a1c9-4c9f-9bc2-00ad11a2a9b0/",
+      "price": 27334,
+      "title": "2022 Toyota Camry XSE",
+      "year": 2022,
+      "dealer": "Conicelli Autoplex"
+    },
+    {
+      "id": "dcdbb138-2906-4d64-9e3f-230d2b0b105b",
+      "url": "https://www.cars.com/vehicledetail/dcdbb138-2906-4d64-9e3f-230d2b0b105b/",
+      "price": 24265,
+      "title": "2022 Toyota Camry LE",
+      "year": 2022,
+      "dealer": "Northstar Kia"
+    },
+    {
+      "id": "d4bf0427-3ebc-46ad-b87b-1c1f313abafc",
+      "url": "https://www.cars.com/vehicledetail/d4bf0427-3ebc-46ad-b87b-1c1f313abafc/",
+      "price": 37247,
+      "title": "2026 Toyota Camry XSE",
+      "year": 2026,
+      "dealer": "Jaguar Land Rover West Columbia"
+    },
+    {
+      "id": "79e1f008-2c91-44a5-a218-0733e120c3f9",
+      "url": "https://www.cars.com/vehicledetail/79e1f008-2c91-44a5-a218-0733e120c3f9/",
+      "price": 29998,
+      "title": "2019 Toyota Camry XSE",
+      "year": 2019,
+      "dealer": "CarMax Westborough"
+    }
+  ]
+}
