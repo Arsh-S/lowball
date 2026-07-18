@@ -8,7 +8,7 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
-import { extractCriteria, search } from "./search.js";
+import { handleSearch, packetCache } from "./search.js";
 import type { Car } from "./types.js";
 
 const WEB_DIR = fileURLToPath(new URL("../../web", import.meta.url));
@@ -25,6 +25,7 @@ app.get("/health", async () => ({
   apify: Boolean(process.env.APIFY_TOKEN && process.env.APIFY_ACTOR_ID),
   openai: Boolean(process.env.OPENAI_API_KEY),
   publicDomain: process.env.PUBLIC_DOMAIN ?? null,
+  scraper: process.env.SCRAPER_URL ?? "http://localhost:8090",
 }));
 
 app.get("/", async (_req, reply) => {
@@ -40,8 +41,31 @@ app.get("/intro.js", async (_req, reply) => {
 app.post<{ Body: { query: string; client?: string } }>("/search", async (req, reply) => {
   const query = req.body?.query?.trim();
   if (!query) return reply.code(400).send({ error: "query is required" });
-  const criteria = await extractCriteria(query);
-  return search(query, criteria);
+  try {
+    const result = await handleSearch(query);
+    // Dashboard-compat aliases: web/intro.js renders `criteria` + `cars`
+    // (mileage/location/why/hot/target), while the API's native shape is
+    // `params` + `cards`. Serve both so neither client breaks.
+    const cars = result.cards.map((c) => ({
+      id: c.id,
+      year: c.year,
+      make: c.make,
+      model: c.model,
+      trim: c.trim,
+      price: c.price,
+      mileage: c.miles,
+      dealer: c.dealer,
+      phone: c.phone,
+      location: c.city,
+      hot: Boolean(c.badge),
+      why: (c.badge?.reasons ?? c.reasons)?.join(" · ") || undefined,
+      target: packetCache.get(c.id)?.target,
+    }));
+    return { ...result, criteria: result.params, cars };
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(502).send({ error: (err as Error).message });
+  }
 });
 
 app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
@@ -49,10 +73,22 @@ app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
   return ingestListing(req.body.url);
 });
 
-app.post<{ Body: { car: Car; dealerPhone?: string } }>("/negotiate", async (req, reply) => {
-  if (!req.body?.car) return reply.code(400).send({ error: "car is required" });
+app.post<{
+  Body: { listingId?: string; clientName?: string; dealerPhone?: string; car?: Car };
+}>("/negotiate", async (req, reply) => {
+  const { listingId, clientName, dealerPhone, car: bodyCar } = req.body ?? {};
+
+  let car: Car | undefined;
+  if (listingId && packetCache.has(listingId)) {
+    car = packetCache.get(listingId);
+    if (car && clientName) car = { ...car, clientName };
+  } else {
+    car = bodyCar;
+  }
+  if (!car) return reply.code(400).send({ error: "listingId or car is required" });
+
   try {
-    return await startNegotiation(req.body.car, req.body.dealerPhone);
+    return await startNegotiation(car, dealerPhone);
   } catch (err) {
     req.log.error(err);
     return reply.code(500).send({ error: (err as Error).message });

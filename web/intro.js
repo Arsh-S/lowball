@@ -538,7 +538,7 @@ async function startCall(c){
   const car={year:+c.year||0,make:c.make||'',model:c.model||'',miles:+c.mileage||0,
     price:+c.price||0,dealer:c.dealer||'',phone:c.phone||'',target:c.target||Math.round((+c.price||0)*0.91)};
   fetch(API+'/negotiate',{method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({car,dealerPhone:c.phone})}).catch(()=>{});
+    body:JSON.stringify({listingId:c.id,car,dealerPhone:c.phone})}).catch(()=>{});
 
   // if no live WS in a moment, run a scripted demo so the flow always reads
   setTimeout(()=>{ if(feed.children.length<=1) demoCall(c); }, 1800);
