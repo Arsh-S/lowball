@@ -8,6 +8,7 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
+import { getCar, listListings } from "./listings.js";
 import { handleSearch, packetCache } from "./search.js";
 import type { Car } from "./types.js";
 
@@ -73,18 +74,19 @@ app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
   return ingestListing(req.body.url);
 });
 
+app.get("/listings", async () => listListings());
+
 app.post<{
   Body: { listingId?: string; clientName?: string; dealerPhone?: string; car?: Car };
 }>("/negotiate", async (req, reply) => {
   const { listingId, clientName, dealerPhone, car: bodyCar } = req.body ?? {};
 
+  // Packet from the last /search wins; fall back to the scraped dataset on
+  // disk, then to an inline car body.
   let car: Car | undefined;
-  if (listingId && packetCache.has(listingId)) {
-    car = packetCache.get(listingId);
-    if (car && clientName) car = { ...car, clientName };
-  } else {
-    car = bodyCar;
-  }
+  if (listingId) car = packetCache.get(listingId) ?? getCar(listingId);
+  car ??= bodyCar;
+  if (car && clientName) car = { ...car, clientName };
   if (!car) return reply.code(400).send({ error: "listingId or car is required" });
 
   try {

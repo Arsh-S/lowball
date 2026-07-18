@@ -1,4 +1,6 @@
 export type PriceHistoryEntry = { date: string; price: number };
+// Alias used by listings.ts (scraper-dataset loader) — same shape.
+export type PricePoint = PriceHistoryEntry;
 
 export type CompCard = { year: number; price: number; dealer: string; distanceMi?: number };
 
