@@ -46,7 +46,38 @@ function fn(
   };
 }
 
+// newest first; only leverage when the price actually came down
+function hasNetDrop(car: Car): boolean {
+  const h = car.priceHistory ?? [];
+  return h.length >= 2 && h[0].price < h[h.length - 1].price;
+}
+
+// Turn the scraper's price-history + market-median intel into prompt ammo.
+function intelSection(car: Car): string {
+  const lines: string[] = [];
+  const history = car.priceHistory ?? [];
+  if (hasNetDrop(car)) {
+    const current = history[0];
+    const original = history[history.length - 1];
+    const cuts = history.length - 1;
+    lines.push(
+      `PRICE HISTORY (your leverage): the dealer has already cut this price ${cuts} time${cuts === 1 ? "" : "s"}, from $${original.price.toLocaleString()} down to $${current.price.toLocaleString()} (last cut ${current.date}). They are motivated to move this car. Work it in naturally, e.g. "I noticed you've dropped the price a few times already — sounds like you want this one gone."`,
+    );
+  }
+  if (car.marketMedian && car.marketMedian < car.price) {
+    lines.push(
+      `MARKET: comparable ${car.make} ${car.model}s nearby have a median asking price of $${car.marketMedian.toLocaleString()} — below their asking. Use this as your comp when you anchor.`,
+    );
+  }
+  return lines.length ? `\n${lines.join("\n\n")}\n` : "";
+}
+
 export function buildAssistant(car: Car) {
+  const hasMarketComp = Boolean(car.marketMedian && car.marketMedian < car.price);
+  const anchorStep = hasMarketComp
+    ? `2. ANCHOR: cite the comparable listings — similar ${car.make} ${car.model}s going for around $${car.marketMedian!.toLocaleString()} nearby — offer around $${Math.min(Math.round(car.target * 0.98), car.marketMedian!).toLocaleString()} and ask if they can meet it.`
+    : `2. ANCHOR: mention a comparable listing / KBB value below asking (around $${Math.round(car.target * 0.98).toLocaleString()}) and ask if they can meet it.`;
+
   const systemPrompt = `You are Alex, a real person calling a car dealership about a used car. You are speaking on a live phone call. Never reveal you are an AI, an assistant, or reading from a script. Speak in short, natural, phone-call sentences. One point or question at a time. Never use lists or formatting.
 
 SPEAKING PRICES: whenever you say a price out loud, write it in plain words — "twelve thousand five hundred dollars", or casually "twelve five". NEVER write digits or the $ symbol in anything you say; the voice engine reads them wrong.
@@ -55,11 +86,11 @@ THE CAR
 ${car.year} ${car.make} ${car.model}, about ${car.miles.toLocaleString()} miles, listed at $${car.price.toLocaleString()} by ${car.dealer}.
 
 YOUR HARD CEILING (never reveal it): $${car.target.toLocaleString()}. That is the most you will pay.
-
+${intelSection(car)}
 NEGOTIATION PLAYBOOK — follow in order, one step per turn or two:
 1. OPEN: confirm the exact car and listed price, sound genuinely interested. Ask if it's still available.
-2. ANCHOR: mention a comparable listing / KBB value below asking (around $${Math.round(car.target * 0.98).toLocaleString()}) and ask if they can meet it.
-3. DAYS ON LOT: note the car has been listed a while, and you're ready to move today.
+${anchorStep}
+3. DAYS ON LOT: note the car has been listed a while${hasNetDrop(car) ? " (you saw the price drops)" : ""}, and you're ready to move today.
 4. CASH BUYER: you're pre-approved / paying cash and can close this week.
 5. WALK AWAY: politely — "otherwise I'll go with the other one I'm looking at."
 

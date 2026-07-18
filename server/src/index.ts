@@ -6,6 +6,7 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
+import { getCar, listListings } from "./listings.js";
 import type { Car } from "./types.js";
 
 const app = Fastify({ logger: true });
@@ -27,15 +28,25 @@ app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
   return ingestListing(req.body.url);
 });
 
-app.post<{ Body: { car: Car; dealerPhone?: string } }>("/negotiate", async (req, reply) => {
-  if (!req.body?.car) return reply.code(400).send({ error: "car is required" });
-  try {
-    return await startNegotiation(req.body.car, req.body.dealerPhone);
-  } catch (err) {
-    req.log.error(err);
-    return reply.code(500).send({ error: (err as Error).message });
-  }
-});
+app.get("/listings", async () => listListings());
+
+app.post<{ Body: { car?: Car; listingId?: string; dealerPhone?: string } }>(
+  "/negotiate",
+  async (req, reply) => {
+    let car = req.body?.car;
+    if (!car && req.body?.listingId) {
+      car = getCar(req.body.listingId);
+      if (!car) return reply.code(404).send({ error: `no listing with id ${req.body.listingId}` });
+    }
+    if (!car) return reply.code(400).send({ error: "car or listingId is required" });
+    try {
+      return await startNegotiation(car, req.body.dealerPhone);
+    } catch (err) {
+      req.log.error(err);
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  },
+);
 
 app.post("/vapi-webhook", async (req) => handleVapiWebhook(req.body));
 
