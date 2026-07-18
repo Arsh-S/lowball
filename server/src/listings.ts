@@ -18,6 +18,7 @@ type RawListing = {
   seller_address?: string;
   seller_phone_number?: string;
   price_badge?: string;
+  photos?: string; // JSON-encoded array of image URLs
 };
 
 const DATA_DIR =

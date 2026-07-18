@@ -21,6 +21,7 @@ export type CardView = {
   city?: string;
   phone: string;
   badge?: { label: string; reasons: string[] };
+  photo?: string;
   reasons: string[];
   negotiability: {
     priceDrops: number;
@@ -88,6 +89,17 @@ async function extractParams(query: string): Promise<ExtractedParams> {
   return JSON.parse(res.choices[0]?.message?.content ?? "{}");
 }
 
+// `photos` arrives as a JSON-encoded array of URLs (scraper detail schema).
+function firstPhoto(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && typeof arr[0] === "string" ? arr[0] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toCompCard(card: ScraperSearchCard): CompCard | null {
   if (card.price == null || card.year == null || !card.dealer) return null;
   return { year: card.year, price: card.price, dealer: card.dealer };
@@ -153,6 +165,7 @@ function datasetSearch(params: ExtractedParams): SearchResult {
       dealer: car.dealer,
       city: listing.seller_address || undefined,
       phone: car.phone,
+      photo: firstPhoto(listing.photos),
       badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
       reasons,
       negotiability: {
@@ -183,9 +196,12 @@ async function scraperBackedSearch(params: ExtractedParams): Promise<SearchResul
   const usable = top8.filter((c) => !failedIds.has(c.id));
 
   const details = new Map<string, Car>();
+  const photoById = new Map<string, string>();
   for (const card of usable) {
     const listing = listings.find((l) => l.id === card.id);
     if (!listing) continue;
+    const photo = firstPhoto(listing.photos);
+    if (photo) photoById.set(card.id, photo);
     // Year-scope median + comps to ±2yr of THIS car (per spec): an unscoped
     // "toyota corolla" search mixed 2014s into a 2024's market, which produced
     // a 23% lowball target and a 2014 cited as a comp on a live call.
@@ -222,6 +238,7 @@ async function scraperBackedSearch(params: ExtractedParams): Promise<SearchResul
       city: car?.city,
       phone: car?.phone ?? "",
       badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
+      photo: photoById.get(card.id),
       reasons,
       negotiability: {
         priceDrops: car?.priceDrops ?? 0,
