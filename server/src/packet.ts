@@ -98,12 +98,14 @@ export function buildPacket(
   const comps = opts.comps.slice(0, 3);
 
   // Ladder: comps-median-based target only when the caller supplied a median
-  // backed by >=5 priced cards (search.ts's call — see its comment); never above asking.
+  // backed by >=5 priced cards (search.ts's call — see its comment); never above
+  // asking, and never more than 12% below it — a live call opened 23% under
+  // asking off a polluted median and the dealer (rightly) treated it as unserious.
   const rawTarget =
     marketMedian != null
       ? floor100(Math.min(marketMedian * 0.97, identity.price * 0.97))
       : defaultTarget(identity.price);
-  const target = Math.min(rawTarget, identity.price);
+  const target = Math.min(Math.max(rawTarget, floor100(identity.price * 0.88)), identity.price);
   const opening = round100(target * 0.98);
 
   return {

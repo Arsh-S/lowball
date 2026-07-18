@@ -112,11 +112,22 @@ export async function handleSearch(query: string): Promise<SearchResult> {
   for (const card of usable) {
     const listing = listings.find((l) => l.id === card.id);
     if (!listing) continue;
+    // Year-scope median + comps to ±2yr of THIS car (per spec): an unscoped
+    // "toyota corolla" search mixed 2014s into a 2024's market, which produced
+    // a 23% lowball target and a 2014 cited as a comp on a live call.
+    const carYear = Number(listing.year) || card.year || 0;
+    const inYearBand = (y: number | null) => y != null && carYear > 0 && Math.abs(y - carYear) <= 2;
+    const scopedPrices = candidates
+      .filter((c) => c.price != null && inYearBand(c.year))
+      .map((c) => c.price as number)
+      .sort((a, b) => a - b);
+    const scopedMedian =
+      scopedPrices.length >= 5 ? scopedPrices[Math.floor(scopedPrices.length / 2)] : median;
     const comps = usable
-      .filter((c) => c.id !== card.id)
+      .filter((c) => c.id !== card.id && inYearBand(c.year))
       .map(toCompCard)
       .filter((c): c is CompCard => c !== null);
-    const car = buildPacket(listing, { median, comps });
+    const car = buildPacket(listing, { median: scopedMedian, comps });
     details.set(card.id, car);
     packetCache.set(card.id, car);
   }
