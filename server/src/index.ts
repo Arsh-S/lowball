@@ -6,6 +6,7 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
+import { handleSearch, packetCache } from "./search.js";
 import type { Car } from "./types.js";
 
 const app = Fastify({ logger: true });
@@ -20,6 +21,7 @@ app.get("/health", async () => ({
   apify: Boolean(process.env.APIFY_TOKEN && process.env.APIFY_ACTOR_ID),
   openai: Boolean(process.env.OPENAI_API_KEY),
   publicDomain: process.env.PUBLIC_DOMAIN ?? null,
+  scraper: process.env.SCRAPER_URL ?? "http://localhost:8090",
 }));
 
 app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
@@ -27,10 +29,33 @@ app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
   return ingestListing(req.body.url);
 });
 
-app.post<{ Body: { car: Car; dealerPhone?: string } }>("/negotiate", async (req, reply) => {
-  if (!req.body?.car) return reply.code(400).send({ error: "car is required" });
+app.post<{ Body: { query: string } }>("/search", async (req, reply) => {
+  if (!req.body?.query) return reply.code(400).send({ error: "query is required" });
   try {
-    return await startNegotiation(req.body.car, req.body.dealerPhone);
+    return await handleSearch(req.body.query);
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.post<{
+  Body: { listingId?: string; clientName?: string; dealerPhone?: string; car?: Car };
+}>("/negotiate", async (req, reply) => {
+  const { listingId, clientName, dealerPhone, car: bodyCar } = req.body ?? {};
+
+  let car: Car | undefined;
+  if (listingId) {
+    car = packetCache.get(listingId);
+    if (!car) return reply.code(404).send({ error: "unknown listingId — run /search first" });
+    if (clientName) car = { ...car, clientName };
+  } else {
+    car = bodyCar;
+  }
+  if (!car) return reply.code(400).send({ error: "listingId or car is required" });
+
+  try {
+    return await startNegotiation(car, dealerPhone);
   } catch (err) {
     req.log.error(err);
     return reply.code(500).send({ error: (err as Error).message });

@@ -46,34 +46,100 @@ function fn(
   };
 }
 
+// "06/17/26" -> "Jun 17" (non-spoken label, only used to anchor a fact in time).
+function shortDateLabel(d: string): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const [m, day] = d.split("/").map(Number);
+  return `${months[(m || 1) - 1]} ${day}`;
+}
+
+function round100(n: number): number {
+  return Math.round(n / 100) * 100;
+}
+
 export function buildAssistant(car: Car) {
-  const systemPrompt = `You are Alex, a real person calling a car dealership about a used car. You are speaking on a live phone call. Never reveal you are an AI, an assistant, or reading from a script. Speak in short, natural, phone-call sentences. One point or question at a time. Never use lists or formatting.
+  const clientName = car.clientName ?? "Gabe";
+  const trim = car.trim ? ` ${car.trim}` : "";
 
-SPEAKING PRICES: whenever you say a price out loud, write it in plain words — "twelve thousand five hundred dollars", or casually "twelve five". NEVER write digits or the $ symbol in anything you say; the voice engine reads them wrong.
+  const facts: string[] = [];
+  if (car.priceDrops && car.priceDrops > 0 && car.priceHistory?.length) {
+    const first = car.priceHistory[0];
+    // Peak, not first entry — history can rise before it falls, and
+    // "from <peak> down to <current>" is the always-true phrasing.
+    const peak = Math.max(...car.priceHistory.map((p) => p.price));
+    facts.push(
+      `- Price history: cut ${car.priceDrops} time${car.priceDrops === 1 ? "" : "s"} since ${shortDateLabel(first.date)}, from a high of ${spokenUsd(peak)} down to ${spokenUsd(car.price)}${car.totalDrop ? ` — ${spokenUsd(car.totalDrop)} in total cuts` : ""}.`,
+    );
+  }
+  if (car.daysListed != null) {
+    facts.push(`- On the market at least ${car.daysListed} days.`);
+  }
+  if (car.milesPerYear != null) {
+    facts.push(`- ${car.milesPerYear.toLocaleString()} miles/year vs ~12,000 typical.`);
+  }
+  if (car.marketMedian != null && car.marketDelta != null) {
+    const dir = car.marketDelta > 0 ? "above" : "below";
+    facts.push(
+      `- Market: comparable listings median ${spokenUsd(car.marketMedian)} — this car is ${spokenUsd(Math.abs(car.marketDelta))} ${dir} that.`,
+    );
+  }
+  if (car.comps?.length) {
+    const alts = car.comps
+      .map((c) => `a ${c.year} at ${c.dealer}, listed ${spokenUsd(c.price)}`)
+      .join("; ");
+    facts.push(
+      `- Real alternatives ${clientName} is also considering (cite freely, never invent others): ${alts}.`,
+    );
+  }
+  const factsBlock = facts.length
+    ? `FACTS YOU MAY USE (all true — phrase them naturally, never as a list):\n${facts.join("\n")}`
+    : "FACTS YOU MAY USE: none scraped for this listing — rely on the car itself and the negotiation strategy.";
 
-THE CAR
-${car.year} ${car.make} ${car.model}, about ${car.miles.toLocaleString()} miles, listed at $${car.price.toLocaleString()} by ${car.dealer}.
+  const opening = car.opening ?? round100(car.target * 0.98);
+  const meso = round100(car.target + 350);
 
-YOUR HARD CEILING (never reveal it): $${car.target.toLocaleString()}. That is the most you will pay.
+  const systemPrompt = `You are a professional purchasing agent making a live phone call to a car dealership ON BEHALF OF your client, ${clientName}. You are not the buyer; you negotiate for ${clientName}. Speak in short, natural phone sentences — one point or question at a time, never lists or formatting.
 
-NEGOTIATION PLAYBOOK — follow in order, one step per turn or two:
-1. OPEN: confirm the exact car and listed price, sound genuinely interested. Ask if it's still available.
-2. ANCHOR: mention a comparable listing / KBB value below asking (around $${Math.round(car.target * 0.98).toLocaleString()}) and ask if they can meet it.
-3. DAYS ON LOT: note the car has been listed a while, and you're ready to move today.
-4. CASH BUYER: you're pre-approved / paying cash and can close this week.
-5. WALK AWAY: politely — "otherwise I'll go with the other one I'm looking at."
+IDENTITY: If asked who you are: "I'm an agent — I help ${clientName} with purchases." Never claim to be human. If directly asked whether you're an AI, admit it briefly and steer back to the deal. ${clientName} is a real buyer with real money.
 
-TOOL RULES — these are mandatory:
-- EVERY time the dealer names a price, call log_offer with that price BEFORE you respond to them. No exceptions, even if it's the asking price repeated.
-- Accept a price ONLY at or below $${car.target.toLocaleString()}: call accept_offer, confirm out loud, then call end_call with outcome "deal" and hang up with the endCall tool.
-- If they won't go below asking after the full playbook, call end_call with outcome "no_deal", thank them, and hang up with the endCall tool.
-- If their best offer is below asking but above your ceiling after the playbook is exhausted, take the best logged offer: accept_offer at that price, then end_call with outcome "deal".
+SPEAKING PRICES: say every price in plain words ("thirty-four thousand five hundred dollars", casually "thirty-four five"). NEVER digits or the $ symbol.
+
+THE CAR: ${car.year} ${car.make} ${car.model}${trim}, about ${car.miles.toLocaleString()} miles, listed at ${spokenUsd(car.price)} by ${car.dealer}.
+
+${factsBlock}
+
+YOUR NUMBERS (never reveal these): opening ${spokenUsd(opening)}, genuine goal ${spokenUsd(car.target)}. You may bluff that ${spokenUsd(car.target)} is your authorization limit.
+
+STRATEGY — escalate in order, one step per turn or two:
+1. Confirm the exact car and that it's available. Sound genuinely interested.
+2. Ask what they can do on price. Do NOT name a number first; deflect once ("you know the car better than I do — where can you be on it?"). If forced, open at ${spokenUsd(opening)}.
+3. Apply the facts: price drops, days listed, mileage, market median.
+4. Cite a real alternative (BATNA).
+5. Present two offers at once: "${clientName} can do ${spokenUsd(car.target)} with a deposit today and pickup this week — or ${spokenUsd(meso)} if you cover the doc fee." Read which they prefer and push that lever.
+6. Ask: "What's your best out-the-door number if ${clientName} takes it as-is with a deposit today?"
+7. Only after all of the above: accept their best number below asking — "${clientName} really wants this one, let's get it done."
+
+TERMS you may trade (nothing else): deposit today, close this week, no trade-in, flexible pickup, open to financing through the dealer (never commit). ALWAYS negotiate the out-the-door price, fees included.
+
+OBJECTIONS:
+- "Come in and we'll talk": "${clientName} will come in same day with a deposit — once we agree on an out-the-door number on this call." Never agree to just come in.
+- "Let me ask my manager": wait, then re-anchor at the last number discussed.
+- "Price is firm": use the facts and the alternative listing.
+- Trade-in/financing: no trade-in; financing through them is possible if the number works.
+
+TOOLS — mandatory:
+- The moment the dealer names ANY price, call log_offer with it BEFORE you respond. Every time, even a repeat of asking.
+- At or below ${spokenUsd(car.target)}: call accept_offer, confirm out loud, then end_call outcome "deal", then hang up with endCall.
+- Below asking but above target, ONLY after strategy steps 1–7 are exhausted: accept_offer at their best logged number, then end_call "deal".
+- No movement at all after the full strategy: end_call outcome "no_deal", thank them, hang up with endCall.
+
+CLOSING A DEAL: ask them to text or email ${clientName} the agreed out-the-door number; he'll put a deposit down today. Never give payment details or contact info.
 
 Stay polite, confident, unhurried. Silence is fine. Never bid against yourself: after you name a number, wait for theirs.`;
 
   return {
     name: "Lowball Negotiator",
-    firstMessage: `Hi there — I'm calling about the ${car.year} ${car.make} ${car.model} you have listed for ${spokenUsd(car.price)}. Is it still available?`,
+    firstMessage: `Hey, this is an agent calling on behalf of ${clientName} — I'm calling about the ${car.year} ${car.make} ${car.model} you have listed for ${spokenUsd(car.price)}. Is it still available?`,
     model: {
       provider: "openai",
       model: "gpt-4o",

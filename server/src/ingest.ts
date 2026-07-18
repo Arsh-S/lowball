@@ -13,6 +13,7 @@ export const FALLBACK_CAR: Car = {
   dealer: "Sunrise Auto Group",
   phone: "",
   target: 11300,
+  clientName: "Gabe",
 };
 
 export async function ingestListing(url: string): Promise<Car> {
