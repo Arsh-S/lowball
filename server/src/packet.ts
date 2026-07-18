@@ -97,15 +97,16 @@ export function buildPacket(
   const marketDelta = marketMedian != null ? identity.price - marketMedian : null;
   const comps = opts.comps.slice(0, 3);
 
-  // Ladder: comps-median-based target only when the caller supplied a median
-  // backed by >=5 priced cards (search.ts's call — see its comment); never above
-  // asking, and never more than 12% below it — a live call opened 23% under
-  // asking off a polluted median and the dealer (rightly) treated it as unserious.
-  const rawTarget =
-    marketMedian != null
-      ? floor100(Math.min(marketMedian * 0.97, identity.price * 0.97))
-      : defaultTarget(identity.price);
-  const target = Math.min(Math.max(rawTarget, floor100(identity.price * 0.88)), identity.price);
+  // Evidence-scaled ladder: the discount we chase is the discount the data
+  // earns, so every extra point maps to a fact the agent can say out loud.
+  // 5% base + ~1%/price cut + ~1%/month on the lot + a slice of any gap above
+  // the year-scoped median, clamped 5-12% — a live call that opened 23% under
+  // asking (polluted median) got treated as unserious; a flat ask reads canned.
+  let discount = 0.05;
+  discount += Math.min(priceDrops, 3) * 0.01;
+  if (daysListed != null) discount += Math.min(Math.floor(daysListed / 30), 2) * 0.01;
+  if (marketDelta != null && marketDelta > 0) discount += Math.min(marketDelta / identity.price, 0.04);
+  const target = Math.min(floor100(identity.price * (1 - Math.min(discount, 0.12))), identity.price);
   const opening = round100(target * 0.98);
 
   return {
