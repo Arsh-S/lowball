@@ -1,22 +1,22 @@
 {
   "url": "https://www.cars.com/shopping/results/?stock_type=used&zip=10001&maximum_distance=100&page=1&page_size=50&makes%5B%5D=toyota",
-  "cached_at": 1784395321.763885,
+  "cached_at": 1784398585.671623,
   "cards": [
     {
-      "id": "dcdbb138-2906-4d64-9e3f-230d2b0b105b",
-      "url": "https://www.cars.com/vehicledetail/dcdbb138-2906-4d64-9e3f-230d2b0b105b/",
-      "price": 24265,
-      "title": "2022 Toyota Camry LE",
-      "year": 2022,
-      "dealer": "Northstar Kia"
+      "id": "197ced47-0207-4832-aa93-5a2a59795e03",
+      "url": "https://www.cars.com/vehicledetail/197ced47-0207-4832-aa93-5a2a59795e03/",
+      "price": 57994,
+      "title": "2023 Toyota Supra 3.0 Premium",
+      "year": 2023,
+      "dealer": "CarTopia"
     },
     {
-      "id": "61a842a9-5800-4799-9b93-b541e76c6d6c",
-      "url": "https://www.cars.com/vehicledetail/61a842a9-5800-4799-9b93-b541e76c6d6c/",
-      "price": 34685,
-      "title": "2023 Toyota Tacoma SR5",
+      "id": "f938b1d2-708f-496f-a8d2-b37c0ff042c4",
+      "url": "https://www.cars.com/vehicledetail/f938b1d2-708f-496f-a8d2-b37c0ff042c4/",
+      "price": 35794,
+      "title": "2023 Toyota Tacoma Limited",
       "year": 2023,
-      "dealer": "Executive Dodge Jeep RAM"
+      "dealer": "Automotive Avenues Sewell"
     },
     {
       "id": "67c8304f-7cc8-40bf-8b63-f41eac6dd701",
@@ -155,12 +155,12 @@
       "dealer": "Westbury Toyota"
     },
     {
-      "id": "74b07da7-9bde-40ea-b494-510ba4cf008b",
-      "url": "https://www.cars.com/vehicledetail/74b07da7-9bde-40ea-b494-510ba4cf008b/",
-      "price": 31645,
-      "title": "2024 Toyota Prius Prime XSE",
-      "year": 2024,
-      "dealer": "Executive Honda"
+      "id": "75e50bb9-a0d3-4d81-8b1e-b41fc45929d3",
+      "url": "https://www.cars.com/vehicledetail/75e50bb9-a0d3-4d81-8b1e-b41fc45929d3/",
+      "price": 42499,
+      "title": "2025 Toyota 4Runner SR5",
+      "year": 2025,
+      "dealer": "Galaxy Toyota"
     },
     {
       "id": "e6a524e5-4d36-4728-aca4-56677486f181",
