@@ -117,14 +117,29 @@ export async function handleSearch(query: string): Promise<SearchResult> {
     // a 23% lowball target and a 2014 cited as a comp on a live call.
     const carYear = Number(listing.year) || card.year || 0;
     const inYearBand = (y: number | null) => y != null && carYear > 0 && Math.abs(y - carYear) <= 2;
-    const scopedPrices = candidates
-      .filter((c) => c.price != null && inYearBand(c.year))
-      .map((c) => c.price as number)
-      .sort((a, b) => a - b);
+    // Model-scope too: a make-only search mixes models ("lamborghini" returned
+    // Uruses as comps for a Huracan). Prefer same-model cards, fall back to
+    // year-band-only when the model pool is too thin.
+    const modelKey = (listing.model || "").trim().toLowerCase().split(/\s+/)[0] || "";
+    const sameModel = (t: string | null) => modelKey.length > 1 && t != null && t.toLowerCase().includes(modelKey);
+    const bandPrices = (requireModel: boolean) =>
+      candidates
+        .filter((c) => c.price != null && inYearBand(c.year) && (!requireModel || sameModel(c.title)))
+        .map((c) => c.price as number)
+        .sort((a, b) => a - b);
+    const modelPrices = bandPrices(true);
+    const yearPrices = bandPrices(false);
     const scopedMedian =
-      scopedPrices.length >= 5 ? scopedPrices[Math.floor(scopedPrices.length / 2)] : median;
-    const comps = usable
-      .filter((c) => c.id !== card.id && inYearBand(c.year))
+      modelPrices.length >= 5
+        ? modelPrices[Math.floor(modelPrices.length / 2)]
+        : yearPrices.length >= 5
+          ? yearPrices[Math.floor(yearPrices.length / 2)]
+          : median;
+    // Only cheaper cars work as BATNA leverage — an alternative above asking is no alternative.
+    const compPool = usable.filter(
+      (c) => c.id !== card.id && inYearBand(c.year) && c.price != null && c.price < (card.price ?? Infinity),
+    );
+    const comps = [...compPool.filter((c) => sameModel(c.title)), ...compPool.filter((c) => !sameModel(c.title))]
       .map(toCompCard)
       .filter((c): c is CompCard => c !== null);
     const car = buildPacket(listing, { median: scopedMedian, comps });
