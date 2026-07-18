@@ -78,10 +78,15 @@ export function buildAssistant(car: Car) {
     facts.push(`- ${car.milesPerYear.toLocaleString()} miles/year vs ~12,000 typical.`);
   }
   if (car.marketMedian != null && car.marketDelta != null) {
-    const dir = car.marketDelta > 0 ? "above" : "below";
-    facts.push(
-      `- Market: comparable listings median ${spokenUsd(car.marketMedian)} — this car is ${spokenUsd(Math.abs(car.marketDelta))} ${dir} that.`,
-    );
+    if (car.marketDelta > 0) {
+      facts.push(
+        `- Market: comparable listings median ${spokenUsd(car.marketMedian)} — this car is ${spokenUsd(car.marketDelta)} ABOVE that. Strong leverage; use it.`,
+      );
+    } else {
+      facts.push(
+        `- Market: comparable listings median ${spokenUsd(car.marketMedian)} — this car is already ${spokenUsd(-car.marketDelta)} BELOW market. That's a good price, not leverage: don't grind for a deep cut, secure it near your goal and win on speed before someone else takes it.`,
+      );
+    }
   }
   if (car.comps?.length) {
     const alts = car.comps
@@ -92,10 +97,12 @@ export function buildAssistant(car: Car) {
     );
   }
   const factsBlock = facts.length
-    ? `FACTS YOU MAY USE (all true — phrase them naturally, never as a list):\n${facts.join("\n")}`
+    ? `FACTS YOU MAY USE (all true — phrase them naturally, never as a list):
+${facts.join("\n")}
+Leverage hierarchy: the dealer's own price cuts and any gap ABOVE market are your strong cards. Days on the lot is soft context — mention it in passing, never lean on it. A below-market price is NOT leverage; it means the deal is already good.`
     : "FACTS YOU MAY USE: none scraped for this listing — rely on the car itself and the negotiation strategy.";
 
-  const opening = car.opening ?? round100(car.target * 0.98);
+  const opening = car.opening ?? round100(car.target * 0.96);
   const meso = round100(car.target + 350);
 
   const systemPrompt = `You are a professional purchasing agent making a live phone call to a car dealership ON BEHALF OF your client, ${clientName}. You are not the buyer; you negotiate for ${clientName}. Speak in short, natural phone sentences — one point or question at a time, never lists or formatting.
@@ -139,6 +146,7 @@ STRATEGY — escalate in order, one step per turn or two:
 TERMS you may trade (nothing else): deposit today, close this week, no trade-in, flexible pickup, open to financing through the dealer (never commit). ALWAYS negotiate the out-the-door price, fees included.
 
 CONCEDING — dynamic, never scripted:
+- TRACK YOUR LAST NUMBER. If you announce a stretch ("${clientName} can go up a bit"), the new number MUST be strictly higher than the last one you offered — never repeat the same number and call it a stretch. Out of room? Say that instead: "that's genuinely his ceiling."
 - Move in shrinking steps: each concession you make must be smaller than your previous one.
 - Never concede for free — every time you come up, take a term back ("okay, ${clientName} can stretch a little IF you cover the doc fee and he picks it up Saturday").
 - Stall before conceding ("let me see what ${clientName} can do") — easy agreement invites another push.

@@ -104,10 +104,15 @@ export function buildPacket(
   // asking (polluted median) got treated as unserious; a flat ask reads canned.
   let discount = 0.05;
   discount += Math.min(priceDrops, 3) * 0.01;
-  if (daysListed != null) discount += Math.min(Math.floor(daysListed / 30), 2) * 0.01;
+  // Days on lot is soft leverage — worth one point at most.
+  if (daysListed != null && daysListed >= 30) discount += 0.01;
   if (marketDelta != null && marketDelta > 0) discount += Math.min(marketDelta / identity.price, 0.04);
-  const target = Math.min(floor100(identity.price * (1 - Math.min(discount, 0.12))), identity.price);
-  const opening = round100(target * 0.98);
+  // Priced under median = already a deal — ease off so we don't blow it.
+  if (marketDelta != null && marketDelta < 0) discount -= Math.min(-marketDelta / identity.price, 0.02);
+  const target = Math.min(floor100(identity.price * (1 - Math.min(Math.max(discount, 0.03), 0.12))), identity.price);
+  // 4% under target so there's real runway to "stretch" through shrinking
+  // concessions — at 2% the agent re-announced the same number as a stretch.
+  const opening = round100(target * 0.96);
 
   return {
     ...identity,
