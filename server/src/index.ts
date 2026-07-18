@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
@@ -6,7 +8,10 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
+import { extractCriteria, search } from "./search.js";
 import type { Car } from "./types.js";
+
+const WEB_DIR = fileURLToPath(new URL("../../web", import.meta.url));
 
 const app = Fastify({ logger: true });
 
@@ -21,6 +26,23 @@ app.get("/health", async () => ({
   openai: Boolean(process.env.OPENAI_API_KEY),
   publicDomain: process.env.PUBLIC_DOMAIN ?? null,
 }));
+
+app.get("/", async (_req, reply) => {
+  reply.type("text/html").send(readFileSync(`${WEB_DIR}/index.html`, "utf8"));
+});
+app.get("/styles.css", async (_req, reply) => {
+  reply.type("text/css").send(readFileSync(`${WEB_DIR}/styles.css`, "utf8"));
+});
+app.get("/intro.js", async (_req, reply) => {
+  reply.type("text/javascript").send(readFileSync(`${WEB_DIR}/intro.js`, "utf8"));
+});
+
+app.post<{ Body: { query: string; client?: string } }>("/search", async (req, reply) => {
+  const query = req.body?.query?.trim();
+  if (!query) return reply.code(400).send({ error: "query is required" });
+  const criteria = await extractCriteria(query);
+  return search(query, criteria);
+});
 
 app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
   if (!req.body?.url) return reply.code(400).send({ error: "url is required" });
