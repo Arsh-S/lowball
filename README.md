@@ -2,11 +2,11 @@
   <img src="web/lowball.png" alt="Lowball" width="160" />
 </p>
 
-# 🎯 Lowball
+# 🎯 Lowball, Ramp hackathon winner 
 
 **Lowball is an AI agent that calls car dealers and negotiates the price down for you, live.**
 
-Built for the Ramp Builders Cup (NYC, Jul 18 2026). Tracks: **Save Time. Save Money.** (primary) + **Best Use of Sponsors** (OpenAI + Vapi, built in Cursor).
+Built for the Ramp Builders Cup (NYC, Jul 18 2026). Tracks: **Save Time. Save Money.** (primary) + **Best Use of Sponsors** (OpenAI, built in Cursor).
 
 > **📵 Note:** Outbound phone calling is currently **disabled** on the live deployment
 > ([lowball.arshsingh.net](https://lowball.arshsingh.net)) — the demo phone number has been
