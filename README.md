@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/lowball.png" alt="Lowball" width="160" />
+</p>
+
 # 🎯 Lowball
 
 **Lowball is an AI agent that calls car dealers and negotiates the price down for you, live.**
@@ -51,7 +55,8 @@ Apify (scrape listing)  ─►  car JSON {make, model, year, price, dealer, phon
 |---|---|
 | `server/src/index.ts` | Fastify app; routes + dashboard WS |
 | `server/src/ingest.ts` | `POST /ingest {url}` → Apify scrape → `Car` JSON |
-| `server/src/negotiate.ts` | `POST /negotiate {car, dealerPhone}` → creates Vapi call with assistant config |
+| `server/src/listings.ts` | `GET /listings` → scraped dataset (`data/listings/`) → `Car` + intel (price history, market median) |
+| `server/src/negotiate.ts` | `POST /negotiate {car \| listingId, dealerPhone?}` → creates Vapi call with assistant config |
 | `server/src/assistant.ts` | Negotiation system prompt + function tools (`log_offer`, `accept_offer`, `end_call`) |
 | `server/src/webhook.ts` | `POST /vapi-webhook` → transcript + tool-call events → `broadcast()` |
 | `server/src/dashboard.ts` | `WS /dashboard` fan-out hub |
@@ -60,8 +65,15 @@ Apify (scrape listing)  ─►  car JSON {make, model, year, price, dealer, phon
 **`Car` type** (the contract every file shares):
 ```ts
 type Car = { year: number; make: string; model: string; miles: number;
-             price: number; dealer: string; phone: string; target: number };
+             price: number; dealer: string; phone: string; target: number;
+             // optional intel from the scraper dataset:
+             priceHistory?: { date: string; price: number }[]; marketMedian?: number };
 ```
+
+The scraper (`scraping/`, see its README) fills `data/listings/` with 50 real
+cars.com listings — every one with a dealer phone. `GET /listings` serves them,
+`POST /negotiate {listingId}` dials one; real price-drop history and the
+same-model market median feed straight into the negotiation prompt.
 
 ---
 

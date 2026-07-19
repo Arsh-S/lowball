@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { scraperSearch, scraperGetListingsBatch, type ScraperSearchCard } from "./scraper.js";
 import { buildPacket } from "./packet.js";
 import { rankCards, isNoHaggle, buildBadgeReasons } from "./rank.js";
+import { loadListings, toCar, firstPhoto } from "./listings.js";
 import type { Car, CompCard } from "./types.js";
 
 // Built packets from the last /search, keyed by listing id, so /negotiate can
@@ -20,6 +21,8 @@ export type CardView = {
   city?: string;
   phone: string;
   badge?: { label: string; reasons: string[] };
+  photo?: string;
+  url?: string;
   reasons: string[];
   negotiability: {
     priceDrops: number;
@@ -94,6 +97,81 @@ function toCompCard(card: ScraperSearchCard): CompCard | null {
 
 export async function handleSearch(query: string): Promise<SearchResult> {
   const params = await extractParams(query);
+  try {
+    return await scraperBackedSearch(params);
+  } catch (err) {
+    // Live scraper down or not deployed — serve from the bundled dataset so
+    // search keeps working in production without the Python sidecar.
+    console.warn(`scraper unavailable, using disk dataset: ${(err as Error).message}`);
+    return datasetSearch(params);
+  }
+}
+
+// cars.com slug style used by extractParams ("F-150" -> "f_150") applied to
+// dataset values ("Honda", "Civic") so both sides compare equal.
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function datasetSearch(params: ExtractedParams): SearchResult {
+  const all = loadListings();
+  const matches = all.filter((l) => {
+    if (params.make && slugify(l.make) !== params.make) return false;
+    if (params.model && slugify(l.model) !== params.model) return false;
+    const year = Number(l.year) || 0;
+    if (params.year_min != null && year && year < params.year_min) return false;
+    if (params.year_max != null && year && year > params.year_max) return false;
+    const price = Number(l.price) || 0;
+    if (params.max_price != null && price && price > params.max_price) return false;
+    if (params.min_price != null && price && price < params.min_price) return false;
+    return !isNoHaggle(l.seller_name);
+  });
+
+  const prices = matches.map((l) => Number(l.price)).filter((p) => p > 0).sort((a, b) => a - b);
+  const median = prices.length >= 5 ? prices[Math.floor(prices.length / 2)] : null;
+
+  const scored = matches
+    .map((listing) => ({ listing, car: toCar(listing, all) }))
+    .sort((a, b) => {
+      const score = (c: Car) =>
+        (c.priceDrops ?? 0) * 2 +
+        ((c.totalDrop ?? 0) > 0 ? 1 : 0) +
+        (c.marketDelta != null && c.marketDelta < 0 ? 1 : 0);
+      return score(b.car) - score(a.car);
+    })
+    .slice(0, 5);
+
+  const cards: CardView[] = scored.map(({ listing, car }, i) => {
+    packetCache.set(listing.id, car);
+    const reasons = buildBadgeReasons(car);
+    return {
+      id: listing.id,
+      year: car.year,
+      make: car.make,
+      model: car.model,
+      trim: car.trim,
+      price: car.price,
+      miles: car.miles,
+      dealer: car.dealer,
+      city: listing.seller_address || undefined,
+      phone: car.phone,
+      photo: firstPhoto(listing.photos),
+      url: listing.url,
+      badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
+      reasons,
+      negotiability: {
+        priceDrops: car.priceDrops ?? 0,
+        totalDrop: car.totalDrop ?? 0,
+        daysListed: car.daysListed ?? null,
+        marketDelta: car.marketDelta ?? null,
+      },
+    };
+  });
+
+  return { params, search_url: "dataset://local", median, cards };
+}
+
+async function scraperBackedSearch(params: ExtractedParams): Promise<SearchResult> {
   const result = await scraperSearch(params);
 
   // Median only counts as a real comp median with enough priced cards behind it;
@@ -109,9 +187,12 @@ export async function handleSearch(query: string): Promise<SearchResult> {
   const usable = top8.filter((c) => !failedIds.has(c.id));
 
   const details = new Map<string, Car>();
+  const photoById = new Map<string, string>();
   for (const card of usable) {
     const listing = listings.find((l) => l.id === card.id);
     if (!listing) continue;
+    const photo = firstPhoto(listing.photos);
+    if (photo) photoById.set(card.id, photo);
     // Year-scope median + comps to ±2yr of THIS car (per spec): an unscoped
     // "toyota corolla" search mixed 2014s into a 2024's market, which produced
     // a 23% lowball target and a 2014 cited as a comp on a live call.
@@ -163,6 +244,8 @@ export async function handleSearch(query: string): Promise<SearchResult> {
       city: car?.city,
       phone: car?.phone ?? "",
       badge: i === 0 ? { label: "🔥 most negotiable", reasons } : undefined,
+      photo: photoById.get(card.id),
+      url: card.url,
       reasons,
       negotiability: {
         priceDrops: car?.priceDrops ?? 0,

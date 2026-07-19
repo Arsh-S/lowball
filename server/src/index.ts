@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
@@ -6,8 +8,11 @@ import { ingestListing } from "./ingest.js";
 import { startNegotiation } from "./negotiate.js";
 import { handleVapiWebhook } from "./webhook.js";
 import { addClient } from "./dashboard.js";
+import { getCar, listListings } from "./listings.js";
 import { handleSearch, packetCache } from "./search.js";
 import type { Car } from "./types.js";
+
+const WEB_DIR = fileURLToPath(new URL("../../web", import.meta.url));
 
 const app = Fastify({ logger: true });
 
@@ -24,34 +29,74 @@ app.get("/health", async () => ({
   scraper: process.env.SCRAPER_URL ?? "http://localhost:8090",
 }));
 
-app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
-  if (!req.body?.url) return reply.code(400).send({ error: "url is required" });
-  return ingestListing(req.body.url);
+app.get("/", async (_req, reply) => {
+  reply.type("text/html").send(readFileSync(`${WEB_DIR}/index.html`, "utf8"));
 });
+app.get("/styles.css", async (_req, reply) => {
+  reply.type("text/css").send(readFileSync(`${WEB_DIR}/styles.css`, "utf8"));
+});
+app.get("/intro.js", async (_req, reply) => {
+  reply.type("text/javascript").send(readFileSync(`${WEB_DIR}/intro.js`, "utf8"));
+});
+for (const png of ["lowball.png", "favicon.png", "apple-touch-icon.png"]) {
+  app.get(`/${png}`, async (_req, reply) => {
+    reply.type("image/png").send(readFileSync(`${WEB_DIR}/${png}`));
+  });
+}
 
-app.post<{ Body: { query: string } }>("/search", async (req, reply) => {
-  if (!req.body?.query) return reply.code(400).send({ error: "query is required" });
+app.post<{ Body: { query: string; client?: string } }>("/search", async (req, reply) => {
+  const query = req.body?.query?.trim();
+  if (!query) return reply.code(400).send({ error: "query is required" });
   try {
-    return await handleSearch(req.body.query);
+    const result = await handleSearch(query);
+    // Dashboard-compat aliases: web/intro.js renders `criteria` + `cars`
+    // (mileage/location/why/hot/target), while the API's native shape is
+    // `params` + `cards`. Serve both so neither client breaks.
+    const cars = result.cards.map((c) => ({
+      id: c.id,
+      year: c.year,
+      make: c.make,
+      model: c.model,
+      trim: c.trim,
+      price: c.price,
+      mileage: c.miles,
+      dealer: c.dealer,
+      phone: c.phone,
+      location: c.city,
+      photo: c.photo,
+      url: c.url,
+      hot: Boolean(c.badge),
+      why: (c.badge?.reasons ?? c.reasons)?.join(" · ") || undefined,
+      target: packetCache.get(c.id)?.target,
+      priceCuts: c.negotiability.priceDrops,
+      totalDrop: c.negotiability.totalDrop,
+      marketDelta: c.negotiability.marketDelta,
+    }));
+    return { ...result, criteria: result.params, cars };
   } catch (err) {
     req.log.error(err);
     return reply.code(502).send({ error: (err as Error).message });
   }
 });
 
+app.post<{ Body: { url: string } }>("/ingest", async (req, reply) => {
+  if (!req.body?.url) return reply.code(400).send({ error: "url is required" });
+  return ingestListing(req.body.url);
+});
+
+app.get("/listings", async () => listListings());
+
 app.post<{
   Body: { listingId?: string; clientName?: string; dealerPhone?: string; car?: Car };
 }>("/negotiate", async (req, reply) => {
   const { listingId, clientName, dealerPhone, car: bodyCar } = req.body ?? {};
 
+  // Packet from the last /search wins; fall back to the scraped dataset on
+  // disk, then to an inline car body.
   let car: Car | undefined;
-  if (listingId) {
-    car = packetCache.get(listingId);
-    if (!car) return reply.code(404).send({ error: "unknown listingId — run /search first" });
-    if (clientName) car = { ...car, clientName };
-  } else {
-    car = bodyCar;
-  }
+  if (listingId) car = packetCache.get(listingId) ?? getCar(listingId);
+  car ??= bodyCar;
+  if (car && clientName) car = { ...car, clientName };
   if (!car) return reply.code(400).send({ error: "listingId or car is required" });
 
   try {
