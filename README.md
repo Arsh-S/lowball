@@ -8,6 +8,11 @@
 
 Built for the Ramp Builders Cup (NYC, Jul 18 2026). Tracks: **Save Time. Save Money.** (primary) + **Best Use of Sponsors** (OpenAI + Vapi, built in Cursor).
 
+> **📵 Note:** Outbound phone calling is currently **disabled** on the live deployment
+> ([lowball.arshsingh.net](https://lowball.arshsingh.net)) — the demo phone number has been
+> turned off. Browse and search still work. The calling code is fully intact: set
+> `CALLS_ENABLED=true` and `DEMO_CALL_NUMBER=<E.164 number>` in `server/.env` to re-enable.
+
 ---
 
 ## The pitch

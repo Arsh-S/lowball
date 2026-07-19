@@ -563,7 +563,7 @@ function whyFromLeverage(l){
 }
 document.getElementById('browse').onclick=browse;
 
-/* ---- floating detail sheet ---- */
+/* ---- floating detail sheet: inspect first, call from here ---- */
 const detailEl=document.getElementById('detail');
 let detailCar=null;
 function openDetail(c){
@@ -597,11 +597,67 @@ function openDetail(c){
 function closeDetail(){ detailEl.classList.remove('show'); detailCar=null; }
 document.getElementById('dclose').onclick=closeDetail;
 detailEl.addEventListener('click',e=>{ if(e.target===detailEl) closeDetail(); });
+document.getElementById('dcall').onclick=()=>{ if(!detailCar) return; const c=detailCar; closeDetail(); startCall(c); };
 addEventListener('keydown',e=>{ if(e.key==='Escape') closeDetail(); });
 document.getElementById('back').onclick=()=>{
   document.getElementById('results').classList.remove('show');
   brand.classList.add('show'); searchEl.classList.add('show'); q.focus();
 };
+
+/* ============================================================ CALL ====== */
+let ws=null;
+const callEl=document.getElementById('call'), feed=document.getElementById('feed'),
+      amtEl=document.getElementById('amt'), saveEl=document.getElementById('save');
+let askPrice=0;
+function addMsg(who,text){
+  const m=document.createElement('div'); m.className='msg '+who;
+  m.innerHTML=`<span class="who">${who==='agent'?'Lowball':who==='dealer'?'Dealer':'System'}</span>${text}`;
+  feed.appendChild(m); feed.scrollTop=feed.scrollHeight;
+}
+function setOffer(n){ amtEl.textContent=money(n);
+  if(askPrice&&n<askPrice){ amtEl.style.color='#4ade80'; saveEl.textContent='▼ '+money(askPrice-n)+' off ask'; } }
+
+async function startCall(c){
+  askPrice=c.price||0;
+  document.getElementById('calltitle').textContent=`Calling ${c.dealer||'the dealer'}…`;
+  document.getElementById('callsub').textContent=`${c.year||''} ${c.make||''} ${c.model||''} · target ${money(c.target||Math.round((c.price||0)*0.91))}`;
+  amtEl.textContent=c.price?money(c.price):'$—'; amtEl.style.color=''; saveEl.textContent='';
+  feed.innerHTML=''; callEl.classList.add('show');
+  addMsg('sys','Dialing '+(c.phone||c.dealer||'dealer')+'…');
+
+  // live dashboard feed (/dashboard WS) — real call events only, no mock
+  try{
+    ws?.close();
+    ws=new WebSocket((API||location.origin).replace(/^http/,'ws')+'/dashboard');
+    ws.onmessage=ev=>{ let d; try{d=JSON.parse(ev.data)}catch{return}
+      switch(d.type){
+        case 'transcript': if(d.final&&d.text) addMsg(d.role==='assistant'?'agent':'dealer', d.text); break;
+        case 'offer': setOffer(d.price); break;
+        case 'deal': setOffer(d.price); addMsg('sys',`Deal at ${money(d.price)}.`); break;
+        case 'call-started': addMsg('sys','Call connected — live transcript below.'); break;
+        case 'status': addMsg('sys','Call status: '+d.status); break;
+        case 'call-ended': addMsg('sys','Call ended'+(d.outcome?` — ${d.outcome}`:'')+(d.price?` at ${money(d.price)}`:'')+'.'); break;
+        case 'report': if(d.summary) addMsg('sys',d.summary); break;
+      }
+    };
+  }catch{}
+
+  // kick off the real negotiation; surface failures instead of faking a call
+  const car={year:+c.year||0,make:c.make||'',model:c.model||'',miles:+c.mileage||0,
+    price:+c.price||0,dealer:c.dealer||'',phone:c.phone||'',target:c.target||Math.round((+c.price||0)*0.91)};
+  try{
+    const r=await fetch(API+'/negotiate',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({listingId:c.id,car,dealerPhone:c.phone,clientName:client.value.trim()||undefined})});
+    if(!r.ok){
+      let msg='negotiate '+r.status;
+      try{ msg=(await r.json()).error||msg; }catch{}
+      throw new Error(msg);
+    }
+  }catch(err){
+    addMsg('sys','Couldn’t start the call: '+err.message);
+  }
+}
+document.getElementById('endcall').onclick=()=>{ ws?.close(); callEl.classList.remove('show'); };
 
 /* sample fallback so the whole flow demos with zero backend */
 const SAMPLE={criteria:{make:'Ford',model:'F-150',year_min:2017,max_price:35000,zip:'07724'},
