@@ -10,7 +10,10 @@ export async function startNegotiation(car: Car, dealerPhone?: string) {
   if (!phoneNumberId) throw new Error("VAPI_PHONE_NUMBER_ID is not set in server/.env");
   if (!process.env.PUBLIC_DOMAIN) throw new Error("PUBLIC_DOMAIN is not set (ngrok URL for webhooks)");
 
-  const number = dealerPhone ?? car.phone;
+  // Demo safety: with DEMO_DEALER_PHONE set, every call rings that number
+  // (the person playing dealer) unless a dealerPhone is explicitly passed —
+  // nobody accidentally dials a real dealership from localhost.
+  const number = dealerPhone ?? process.env.DEMO_DEALER_PHONE ?? car.phone;
   if (!number) throw new Error("No dealer phone number provided");
   if (!car.target) car.target = defaultTarget(car.price);
 

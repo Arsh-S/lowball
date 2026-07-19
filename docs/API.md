@@ -160,8 +160,10 @@ Starts a live Vapi call. Two ways to call it:
   it's calling on behalf of — spoken in the call, not just a label.
 - `dealerPhone` optional. **Volunteer-demo override:** pass a different
   number here (e.g. a volunteer's cell) to route the call to them instead of
-  the real dealer, for the "you be the dealer" bit. Falls back to the
-  listing's scraped dealer phone if omitted.
+  the real dealer, for the "you be the dealer" bit. When omitted the number
+  resolves as: `DEMO_DEALER_PHONE` env var if set (demo safety — localhost
+  can't accidentally dial a real dealership) → the listing's scraped dealer
+  phone.
 
 **Legacy flow — by full car object (still supported):**
 
